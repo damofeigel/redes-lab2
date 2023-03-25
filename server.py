@@ -23,6 +23,12 @@ class Server(object):
         print("Serving %s on %s:%s." % (directory, addr, port))
         # FALTA: Crear socket del servidor, configurarlo, asignarlo
         # a una dirección y puerto, etc.
+        # https://realpython.com/python-sockets/
+        # https://www.youtube.com/watch?v=E3YcCawV-0s&t
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.addr, self.port))
+        self.socket.listen()
 
     def serve(self):
         """
@@ -30,6 +36,10 @@ class Server(object):
         y se espera a que concluya antes de seguir.
         """
         while True:
+            try:
+                conn, addres = self.socket.accept()
+            except:
+                print("??")
             pass
             # FALTA: Aceptar una conexión al server, crear una
             # Connection para la conexión y atenderla hasta que termine.
