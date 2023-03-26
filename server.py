@@ -37,13 +37,12 @@ class Server(object):
         """
         while True:
             try:
-                conn, addres = self.socket.accept()
+                clientsocket, address = self.socket.accept()
             except:
-                print("??")
-            pass
+
             # FALTA: Aceptar una conexión al server, crear una
             # Connection para la conexión y atenderla hasta que termine.
-
+        clientsocket.close()
 
 def main():
     """Parsea los argumentos y lanza el server"""

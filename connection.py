@@ -20,8 +20,24 @@ class Connection(object):
         self.directory = directory
         pass
 
+    def send(self, message):
+        # TODO: Enviar mensaje al servidor, decode? 
+        with self.socket as s:
+            while True:
+                if len(message) <= 0:
+                    break
+                s.send(message)
+            
+
+    def get_file_listing(self):
+        buf = error_messages[CODE_OK] + EOL
+        for dir in os.listdir(self.directory):
+            buf += dir + " " + EOL
+        buf + EOL
+        #self.send(buf)
+        
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
-        """
+        """ 
         pass
