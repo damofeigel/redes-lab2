@@ -22,19 +22,33 @@ class Connection(object):
 
     def send(self, message):
         # TODO: Enviar mensaje al servidor, decode? 
-        with self.socket as s:
-            while True:
-                if len(message) <= 0:
-                    break
-                s.send(message)
-            
+        total_sent = 0
+        while len(message) > total_sent: 
+            sent = self.socket.send(message[total_sent:])
+            total_sent += sent
 
     def get_file_listing(self):
         buf = error_messages[CODE_OK] + EOL
         for dir in os.listdir(self.directory):
             buf += dir + " " + EOL
         buf + EOL
-        #self.send(buf)
+
+        self.send(buf)
+        
+    def get_metadata(self, filename):
+        # TODO: checkear espacios? errores 
+        buf = error_messages[CODE_OK] + EOL
+        filesize = os.stat(filename).st_size
+        buf += str(filesize) + EOL
+
+        self.send(buf)
+
+    def get_slice(self, filename, offset):
+        #TODO:
+        
+    def quit(self):
+        self.send(error_messages[CODE_OK])
+        self.socket.close()
         
     def handle(self):
         """
