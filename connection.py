@@ -37,15 +37,39 @@ class Connection(object):
         
     def get_metadata(self, filename):
         # TODO: checkear espacios? errores 
+        path = self.directory + '/' + filename
+        
+        if not os.path.isfile(path):
+            self.send(error_messages[FILE_NOT_FOUND])
+        
+        for c in filename:
+            if (c == " "):
+                self.send(error_messages[INVALID_ARGUMENTS])
+
         buf = error_messages[CODE_OK] + EOL
         filesize = os.stat(filename).st_size
         buf += str(filesize) + EOL
 
         self.send(buf)
 
-    def get_slice(self, filename, offset):
-        #TODO:
+    def get_slice(self, filename, offset, size):
         
+        path = self.directory + "/" + filename
+        if not os.path.isfile(path):
+            self.send(error_messages[FILE_NOT_FOUND])
+        
+        filesize = os.stat(filename).st_size
+
+        if offset and size < 0 :
+            self.send(error_messages[INVALID_ARGUMENTS])
+        if offset > filesize:
+            self.send(error_messages[BAD_OFFSET])
+
+        buf = error_messages[CODE_OK] + EOL
+        with open(path, 'r') as file:
+            f.seek(offset)
+        # Falta encode, y enviar!
+
     def quit(self):
         self.send(error_messages[CODE_OK])
         self.socket.close()
