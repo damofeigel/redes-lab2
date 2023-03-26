@@ -18,7 +18,6 @@ class Connection(object):
         # FALTA: Inicializar atributos de Connection
         self.socket = socket
         self.directory = directory
-        pass
 
     def send(self, message):
         # TODO: Enviar mensaje al servidor, decode? 
@@ -36,16 +35,15 @@ class Connection(object):
         self.send(buf)
         
     def get_metadata(self, filename):
-        # TODO: checkear espacios? errores 
         path = self.directory + '/' + filename
-        
+        # Check if file exists
         if not os.path.isfile(path):
             self.send(error_messages[FILE_NOT_FOUND])
-        
+        # Check if filename is valid
         for c in filename:
             if (c == " "):
                 self.send(error_messages[INVALID_ARGUMENTS])
-
+        
         buf = error_messages[CODE_OK] + EOL
         filesize = os.stat(filename).st_size
         buf += str(filesize) + EOL
@@ -67,9 +65,15 @@ class Connection(object):
 
         buf = error_messages[CODE_OK] + EOL
         with open(path, 'r') as file:
-            f.seek(offset)
-        # Falta encode, y enviar!
-
+            file.seek(offset)
+            buf = file.read(size)
+        # Codificamos a base64 y enviamos
+        buf64_bytes = b64encode(buf.b64encode('ascii'))
+        buf64 = base64_bytes.decode('ascii')
+    
+        buf = error_messages[CODE_OK] + EOL + buf64 + EOL 
+        self.send(buf)
+  
     def quit(self):
         self.send(error_messages[CODE_OK])
         self.socket.close()
