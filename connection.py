@@ -19,15 +19,24 @@ class Connection(object):
         self.socket = socket
         self.directory = directory
 
-    def send(self, message):
-        # TODO: Enviar mensaje al servidor, decode? 
+    def create_error_msg(msg_code): 
+        buf = f"{msg_code}: {error_messages[msg_code]}" + EOL
+        return buf
+    
+    def send(self, message, codification="ascii"):
+        if codification == "b64encode":
+            message = b64encode(message)
+        if codification == "ascii":
+            message = message.encode("ascii")
+    
         total_sent = 0
-        while len(message) > total_sent: 
-            sent = self.socket.send(message[total_sent:])
-            total_sent += sent
+        while message: 
+            total_sent = self.socket.send(message)
+            assert total_sent > 0
+            message = message[total_sent:]
 
     def get_file_listing(self):
-        buf = error_messages[CODE_OK] + EOL
+        buf = create_error_msg(CODE_OK)
         for dir in os.listdir(self.directory):
             buf += dir + " " + EOL
         buf + EOL
@@ -44,7 +53,7 @@ class Connection(object):
             if (c == " "):
                 self.send(error_messages[INVALID_ARGUMENTS]+ EOL)
         
-        buf = error_messages[CODE_OK] + EOL
+        buf = create_error_msg(CODE_OK);
         filesize = os.stat(filename).st_size
         buf += str(filesize) + EOL
 
@@ -53,16 +62,16 @@ class Connection(object):
     def get_slice(self, filename, offset, size):
         path = self.directory + "/" + filename
         if not os.path.isfile(path):
-            self.send(error_messages[FILE_NOT_FOUND] + EOL)
+            self.send(create_error_msg(FILE_NOT_FOUND))
         
         filesize = os.stat(filename).st_size
 
         if offset and size < 0 :
-            self.send(error_messages[INVALID_ARGUMENTS] + EOL)
+            self.send(create_error_msg(INVALID_ARGUMENTS))
         if offset > filesize:
-            self.send(error_messages[BAD_OFFSET])
+            self.send(error_messages(BAD_OFFSET))
 
-        buf = error_messages[CODE_OK] + EOL
+        buf = error_messages()
         with open(path, 'r') as file:
             file.seek(offset)
             buf = file.read(size)
@@ -71,22 +80,21 @@ class Connection(object):
         buf64 = base64_bytes.decode('ascii')
     
         buf = error_messages[CODE_OK] + EOL + buf64 + EOL 
-        self.send(buf)
+        self.send(buf, )
   
     def quit(self):
-        self.send(error_messages[CODE_OK] + EOL)
+        self.send(create_error_msg(CODE_OK) + EOL)
         self.socket.close()
         
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        # TODO: check error
         while True:
             # el mensaje deberia ser un comando   
             data = self.socket.recv(4096).decode('ascii') 
             if len(data) == 0:
-                self.send(error_messages[BAD_REQUEST] + EOL)
+                self.send(error_messages(BAD_REQUEST))
                 break
             
             argv = data.split()
@@ -98,13 +106,13 @@ class Connection(object):
                     # la misma funcion checkea que el 
                     # segundo argumento sea valido
                     if len(argv) != 2:
-                        self.send(error_messages[INVALID_ARGUMENTS] + EOL)
+                        self.send(error_messages(BAD_REQUEST))
                     self.get_metadata(argv[1])
                 case "get_slice":
                     if len(argv) != 4:
-                        self.send(error_messages[INVALID_ARGUMENTS] + EOL)
+                        self.send(create_error_msg(INVALID_ARGUMENTS))
                     self.get_slice(argv[1], argv[2], argv[3])
                 case quit:
                     self.quit()
                 case _:
-                    self.send(error_messages[INVALID_COMMAND] + EOL)
+                    self.send(create_error_msg(INVALID_COMMAND))
