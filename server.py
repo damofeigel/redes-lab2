@@ -7,6 +7,7 @@
 # $Id: server.py 656 2013-03-18 23:49:11Z bc $
 
 import optparse
+import sys
 import socket
 import connection
 from constants import *
