@@ -9,7 +9,7 @@ from base64 import b64encode
 
 def create_error_msg(msg_code):
     assert valid_status(msg_code) 
-    buf = f"{msg_code}: {error_messages[msg_code]}" + EOL
+    buf = f"{msg_code} {error_messages[msg_code]}" + EOL
     return buf
 
 class Connection(object):
@@ -119,9 +119,10 @@ class Connection(object):
                     else:
                         self.get_metadata(argv[1])
                 case "get_slice":
-                    if len(argv) != 4:
+                    if len(argv) != 4 or not (argv[2].isdigit() and 
+                                              argv[3].isdigit()):
                         self.send(create_error_msg(INVALID_ARGUMENTS))
-                    else:
+                    else:    
                         self.get_slice(argv[1], argv[2], argv[3])
                 case "quit":
                     self.quit()
