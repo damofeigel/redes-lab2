@@ -25,9 +25,9 @@ class Server(object):
         # a una dirección y puerto, etc.
         # https://realpython.com/python-sockets/
         # https://www.youtube.com/watch?v=E3YcCawV-0s&t
-
+        self.directory = directory
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.addr, self.port))
+        self.socket.bind((addr, port))
         self.socket.listen()
 
     def serve(self):
@@ -36,13 +36,16 @@ class Server(object):
         y se espera a que concluya antes de seguir.
         """
         while True:
-            try:
-                clientsocket, address = self.socket.accept()
-            except:
+        
+            clientsocket, clientaddr = self.socket.accept()
+            print(f"Connected by {clientaddr}")
 
+            con = connection.Connection(clientsocket, self.directory)
+            connection.Connection.handle(con)
+    
             # FALTA: Aceptar una conexión al server, crear una
             # Connection para la conexión y atenderla hasta que termine.
-        clientsocket.close()
+
 
 def main():
     """Parsea los argumentos y lanza el server"""

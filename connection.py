@@ -4,6 +4,7 @@
 # $Id: connection.py 455 2011-05-01 00:32:09Z carlos $
 
 import socket
+import os 
 from constants import *
 from base64 import b64encode
 
@@ -36,7 +37,7 @@ class Connection(object):
             message = message[total_sent:]
 
     def get_file_listing(self):
-        buf = create_error_msg(CODE_OK)
+        buf = Connection.create_error_msg(CODE_OK)
         for dir in os.listdir(self.directory):
             buf += dir + " " + EOL
         buf + EOL
@@ -47,13 +48,13 @@ class Connection(object):
         path = self.directory + '/' + filename
         # Check if file exists
         if not os.path.isfile(path):
-            self.send(error_messages[FILE_NOT_FOUND0] + EOL)
+            self.send(error_messages[FILE_NOT_FOUND] + EOL)
         # Check if filename is valid
         for c in filename:
             if (c == " "):
                 self.send(error_messages[INVALID_ARGUMENTS]+ EOL)
         
-        buf = create_error_msg(CODE_OK);
+        buf = Connection.create_error_msg(CODE_OK);
         filesize = os.stat(filename).st_size
         buf += str(filesize) + EOL
 
@@ -62,12 +63,12 @@ class Connection(object):
     def get_slice(self, filename, offset, size):
         path = self.directory + "/" + filename
         if not os.path.isfile(path):
-            self.send(create_error_msg(FILE_NOT_FOUND))
+            self.send(Connection.create_error_msg(FILE_NOT_FOUND))
         
         filesize = os.stat(filename).st_size
 
         if offset and size < 0 :
-            self.send(create_error_msg(INVALID_ARGUMENTS))
+            self.send(Connection.create_error_msg(INVALID_ARGUMENTS))
         if offset > filesize:
             self.send(error_messages(BAD_OFFSET))
 
@@ -77,13 +78,13 @@ class Connection(object):
             buf = file.read(size)
         # Codificamos a base64 y enviamos
         buf64_bytes = b64encode(buf.b64encode('ascii'))
-        buf64 = base64_bytes.decode('ascii')
+        buf64 = b64encode.decode('ascii')
     
         buf = error_messages[CODE_OK] + EOL + buf64 + EOL 
         self.send(buf, )
   
     def quit(self):
-        self.send(create_error_msg(CODE_OK) + EOL)
+        self.send(Connection.create_error_msg(CODE_OK) + EOL)
         self.socket.close()
         
     def handle(self):
@@ -110,9 +111,10 @@ class Connection(object):
                     self.get_metadata(argv[1])
                 case "get_slice":
                     if len(argv) != 4:
-                        self.send(create_error_msg(INVALID_ARGUMENTS))
+                        self.send(Connection.create_error_msg(INVALID_ARGUMENTS))
                     self.get_slice(argv[1], argv[2], argv[3])
-                case quit:
+                case "quit":
                     self.quit()
+                    break 
                 case _:
-                    self.send(create_error_msg(INVALID_COMMAND))
+                    self.send(Connection.create_error_msg(INVALID_COMMAND))
