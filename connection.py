@@ -3,10 +3,14 @@
 # Copyright 2014 Carlos Bederián
 # $Id: connection.py 455 2011-05-01 00:32:09Z carlos $
 
-import socket
 import os 
 from constants import *
 from base64 import b64encode
+
+def create_error_msg(msg_code):
+    assert valid_status(msg_code) 
+    buf = f"{msg_code}: {error_messages[msg_code]}" + EOL
+    return buf
 
 class Connection(object):
     """
@@ -19,10 +23,6 @@ class Connection(object):
         # FALTA: Inicializar atributos de Connection
         self.socket = socket
         self.directory = directory
-
-    def create_error_msg(msg_code): 
-        buf = f"{msg_code}: {error_messages[msg_code]}" + EOL
-        return buf
     
     def send(self, message, codification="ascii"):
         if codification == "b64encode":
@@ -37,10 +37,10 @@ class Connection(object):
             message = message[total_sent:]
 
     def get_file_listing(self):
-        buf = Connection.create_error_msg(CODE_OK)
+        buf = create_error_msg(CODE_OK)
         for dir in os.listdir(self.directory):
             buf += dir + " " + EOL
-        buf + EOL
+        buf += EOL
 
         self.send(buf)
         
@@ -48,43 +48,52 @@ class Connection(object):
         path = self.directory + '/' + filename
         # Check if file exists
         if not os.path.isfile(path):
-            self.send(error_messages[FILE_NOT_FOUND] + EOL)
+            self.send(create_error_msg(FILE_NOT_FOUND))
+            return
         # Check if filename is valid
         for c in filename:
             if (c == " "):
-                self.send(error_messages[INVALID_ARGUMENTS]+ EOL)
+                self.send(create_error_msg(INVALID_ARGUMENTS))
+                return
         
-        buf = Connection.create_error_msg(CODE_OK);
-        filesize = os.stat(filename).st_size
+        buf = create_error_msg(CODE_OK)
+        filesize = os.stat(path).st_size
         buf += str(filesize) + EOL
 
         self.send(buf)
 
     def get_slice(self, filename, offset, size):
+        offset = int(offset)
+        size = int(size)
         path = self.directory + "/" + filename
         if not os.path.isfile(path):
-            self.send(Connection.create_error_msg(FILE_NOT_FOUND))
+            self.send(create_error_msg(FILE_NOT_FOUND))
+            return
         
-        filesize = os.stat(filename).st_size
+        filesize = os.stat(path).st_size
 
-        if offset and size < 0 :
-            self.send(Connection.create_error_msg(INVALID_ARGUMENTS))
+        if offset < 0 and size < 0 :
+            self.send(create_error_msg(INVALID_ARGUMENTS))
+            return
         if offset > filesize:
-            self.send(error_messages(BAD_OFFSET))
+            self.send(create_error_msg(BAD_OFFSET))
+            return
+        if offset + size > filesize:
+            self.send(create_error_msg(BAD_OFFSET))
+            return
 
-        buf = error_messages()
         with open(path, 'r') as file:
             file.seek(offset)
             buf = file.read(size)
         # Codificamos a base64 y enviamos
-        buf64_bytes = b64encode(buf.b64encode('ascii'))
-        buf64 = b64encode.decode('ascii')
+        buf64_bytes = b64encode(buf.encode('ascii'))
+        buf64 = buf64_bytes.decode('ascii')
     
-        buf = error_messages[CODE_OK] + EOL + buf64 + EOL 
-        self.send(buf, )
+        buf = create_error_msg(CODE_OK) + buf64 + EOL 
+        self.send(buf)
   
     def quit(self):
-        self.send(Connection.create_error_msg(CODE_OK) + EOL)
+        self.send(create_error_msg(CODE_OK))
         self.socket.close()
         
     def handle(self):
@@ -95,9 +104,8 @@ class Connection(object):
             # el mensaje deberia ser un comando   
             data = self.socket.recv(4096).decode('ascii') 
             if len(data) == 0:
-                self.send(error_messages(BAD_REQUEST))
+                self.send(create_error_msg(BAD_REQUEST))
                 break
-            
             argv = data.split()
             match argv[0]:
                 case "get_file_listing":
@@ -107,14 +115,16 @@ class Connection(object):
                     # la misma funcion checkea que el 
                     # segundo argumento sea valido
                     if len(argv) != 2:
-                        self.send(error_messages(BAD_REQUEST))
-                    self.get_metadata(argv[1])
+                        self.send(create_error_msg(INVALID_ARGUMENTS))
+                    else:
+                        self.get_metadata(argv[1])
                 case "get_slice":
                     if len(argv) != 4:
-                        self.send(Connection.create_error_msg(INVALID_ARGUMENTS))
-                    self.get_slice(argv[1], argv[2], argv[3])
+                        self.send(create_error_msg(INVALID_ARGUMENTS))
+                    else:
+                        self.get_slice(argv[1], argv[2], argv[3])
                 case "quit":
                     self.quit()
                     break 
                 case _:
-                    self.send(Connection.create_error_msg(INVALID_COMMAND))
+                    self.send(create_error_msg(INVALID_COMMAND))

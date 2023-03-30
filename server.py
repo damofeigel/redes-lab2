@@ -26,6 +26,7 @@ class Server(object):
         # a una dirección y puerto, etc.
         # https://realpython.com/python-sockets/
         # https://www.youtube.com/watch?v=E3YcCawV-0s&t
+        
         self.directory = directory
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((addr, port))
