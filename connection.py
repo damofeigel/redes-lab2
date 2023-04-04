@@ -25,11 +25,7 @@ class Connection(object):
         self.directory = directory
 
     def send(self, message, codification="ascii"):
-
-        if codification == "b64encode":
-            message = b64encode(message)
-        if codification == "ascii":
-            message = message.encode("ascii")
+        message = message.encode("ascii")
 
         total_sent = 0
         while message:
@@ -53,10 +49,8 @@ class Connection(object):
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
         # Check if filename is valid
-        valid = True
         for c in filename:
             if c not in VALID_CHARS:
-                valid = False
                 self.send(create_error_msg(INVALID_ARGUMENTS))
                 return
 
@@ -99,7 +93,7 @@ class Connection(object):
 
     def quit(self):
         self.send(create_error_msg(CODE_OK))
-        #self.socket.close()
+        self.socket.close()
 
     def handle(self):
         """
@@ -144,7 +138,7 @@ class Connection(object):
                     case _:
                         self.send(create_error_msg(INVALID_COMMAND))
             except Exception:
-                self.send(create_error_msg(INTERNAL_ERROR))
+                #self.send(create_error_msg(INTERNAL_ERROR))
+                print(f"Unexpected {Exception=}, {type(Exception)=}")
+                self.socket.close()
                 break
-
-        self.socket.close()
