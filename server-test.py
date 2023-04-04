@@ -72,9 +72,9 @@ class TestHFTPServer(TestBase):
         self.assertEqual(w, [s],
                          "Se envió quit, no hubo respuesta en %0.1f segundos" % TIMEOUT)
         # Medio segundo más par
-        start = time.clock()
+        start = time.process_time()
         got = s.recv(1024)
-        while got and time.clock() - start <= 0.5:
+        while got and time.process_time() - start <= 0.5:
             r, w, e = select.select([s], [], [], 0.5)
             self.assertEqual(r, [s], "Luego de la respuesta de quit, la "
                              "conexión se mantuvo activa por más "
