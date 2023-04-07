@@ -100,6 +100,8 @@ class Connection(object):
         while True:
             # el mensaje deberia ser un comando
             data = self.socket.recv(4096).decode('ascii')
+            while not EOL in data:
+                data += self.socket.recv(4096).decode('ascii')
             if len(data) == 0:
                 self.send(create_error_msg(BAD_REQUEST))
                 break
