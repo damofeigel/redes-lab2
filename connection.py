@@ -102,12 +102,15 @@ class Connection(object):
             data = self.socket.recv(4096).decode('ascii')
             while not EOL in data:
                 data += self.socket.recv(4096).decode('ascii')
+
             if len(data) == 0:
-                self.send(create_error_msg(BAD_REQUEST))
+                self.send(create_error_msg(BAD_REQUEST)) 
+                self.quit()                               # Aca hace falta quit?
                 break
 
-            if '/n' in data:
+            if (data.count('\n') > 1) or (data.count('\\n') > 0): 
                 self.send(create_error_msg(BAD_EOL))
+                self.quit()
                 break
 
             argv = data.split()
@@ -135,7 +138,7 @@ class Connection(object):
                             ['get_file_slice', *_] | ['quit', *_] ):
                         self.send(create_error_msg(INVALID_ARGUMENTS))
 
-                    case _:
+                    case _:    
                         self.send(create_error_msg(INVALID_COMMAND))
             except Exception:
                 #self.send(create_error_msg(INTERNAL_ERROR))
