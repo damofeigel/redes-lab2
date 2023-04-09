@@ -23,12 +23,12 @@ class Connection(object):
         # FALTA: Inicializar atributos de Connection
         self.socket = socket
         self.directory = directory
-    def send(self, message, codification="ascii"):
-        message = message.encode("ascii")
+        self.connected = True
 
+    def send(self, message):
         total_sent = 0
         while message:
-            total_sent = self.socket.send(message)
+            total_sent = self.socket.send(message.encode("ascii"))
             assert total_sent > 0
             message = message[total_sent:]
 
@@ -59,13 +59,16 @@ class Connection(object):
 
     def get_slice(self, filename, offset, size):
         offset = int(offset)
+        print(offset)
         size = int(size)
+        print(size)
         path = self.directory + "/" + filename
         if not os.path.isfile(path):
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
 
         filesize = os.stat(path).st_size
+        print(filesize)
 
         if offset < 0 and size < 0 :
             self.send(create_error_msg(INVALID_ARGUMENTS))
@@ -83,6 +86,7 @@ class Connection(object):
             file.seek(offset)
             buf = file.read(size)
         # Codificamos a base64 y enviamos
+        file.close()
         buf64_bytes = b64encode(buf.encode('ascii'))
         buf64 = buf64_bytes.decode('ascii')
 
@@ -93,55 +97,78 @@ class Connection(object):
         self.send(create_error_msg(CODE_OK))
         self.socket.close()
 
+    def aux(self, argv):
+        match argv:
+            case ['get_file_listing']:
+                self.get_file_listing()
+
+            case ['get_metadata', filename]:
+                self.get_metadata(filename)
+
+            case ['get_slice', filename, offset, size]:
+                if not (offset.isdigit() and size.isdigit()):
+                    self.send(create_error_msg(INVALID_ARGUMENTS))
+                else:
+                    self.get_slice(filename, offset, size)
+
+            case ['quit']:
+                self.quit()
+                self.connected = False
+
+            case (
+                    ['get_file_listing', *_] | ['get_metadata', *_] |
+                    ['get_slice', *_] | ['quit', *_] ):
+                self.send(create_error_msg(INVALID_ARGUMENTS))
+
+            case _:    
+                self.send(create_error_msg(INVALID_COMMAND))
+
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        while True:
+        MAX_BYTES = 2**14
+        while self.connected:
             # el mensaje deberia ser un comando
-            data = self.socket.recv(4096).decode('ascii')
+            data = self.socket.recv(1024).decode('ascii')
             while not EOL in data:
-                data += self.socket.recv(4096).decode('ascii')
-
-            if len(data) == 0:
-                self.send(create_error_msg(BAD_REQUEST)) 
-                self.quit()                               # Aca hace falta quit?
+                data += self.socket.recv(1024).decode('ascii')
+                if len(data) > MAX_BYTES:
+                    self.send(create_error_msg(BAD_REQUEST))
+                    self.connected = False
+                    self.socket.close()
+                    break
+                    
+            if not self.connected: 
                 break
 
-            if (data.count('\n') > 1) or (data.count('\\n') > 0): 
+            data_list = data.split(EOL)
+
+            if data_list[-1] != '':
                 self.send(create_error_msg(BAD_EOL))
-                self.quit()
-                break
-
-            argv = data.split()
-
-            try:
-                match argv:
-                    case ['get_file_listing']:
-                        self.get_file_listing()
-
-                    case ['get_metadata', filename]:
-                        self.get_metadata(filename)
-
-                    case ['get_slice', filename, offset, size]:
-                        if not (offset.isdigit() and size.isdigit()):
-                            self.send(create_error_msg(INVALID_ARGUMENTS))
-                        else:
-                            self.get_slice(filename, offset, size)
-
-                    case ['quit']:
-                        self.quit()
-                        break
-
-                    case (
-                            ['get_file_listing', *_] | ['get_metadata', *_] |
-                            ['get_file_slice', *_] | ['quit', *_] ):
-                        self.send(create_error_msg(INVALID_ARGUMENTS))
-
-                    case _:    
-                        self.send(create_error_msg(INVALID_COMMAND))
-            except Exception:
-                #self.send(create_error_msg(INTERNAL_ERROR))
-                print(f"Unexpected {Exception=}, {type(Exception)=}")
+                self.connected = False
                 self.socket.close()
                 break
+            
+            else:
+                data_list = data_list[:-1]
+            
+            for command in data_list:
+                if '\n' in command:
+                    self.send(create_error_msg(BAD_EOL))
+                    self.connected = False
+            
+            if not self.connected:
+                self.socket.close()
+                break
+            
+            print(data_list)
+            for command in data_list:
+                argv = command.split()
+                print(command)
+                try:
+                    self.aux(argv)  
+                except:
+                    self.send(create_error_msg(INTERNAL_ERROR))
+                    self.socket.close()
+                    self.connected = False
