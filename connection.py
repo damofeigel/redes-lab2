@@ -59,16 +59,14 @@ class Connection(object):
 
     def get_slice(self, filename, offset, size):
         offset = int(offset)
-        print(offset)
         size = int(size)
-        print(size)
+
         path = self.directory + "/" + filename
         if not os.path.isfile(path):
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
 
         filesize = os.stat(path).st_size
-        print(filesize)
 
         if offset < 0 and size < 0 :
             self.send(create_error_msg(INVALID_ARGUMENTS))
@@ -81,17 +79,21 @@ class Connection(object):
         if offset + size > filesize:
             self.send(create_error_msg(BAD_OFFSET))
             return
+        
+        size_max = size
 
-        with open(path, 'r') as file:
+        with open(path, "rb") as file:
             file.seek(offset)
-            buf = file.read(size)
-        # Codificamos a base64 y enviamos
-        file.close()
-        buf64_bytes = b64encode(buf.encode('ascii'))
-        buf64 = buf64_bytes.decode('ascii')
+            buf = file.read(size)    
+            size_max -= size
 
+        buf64_bytes = b64encode(buf)
+        buf64 = buf64_bytes.decode('ascii')
         buf = create_error_msg(CODE_OK) + buf64 + EOL
+
         self.send(buf)
+    
+
 
     def quit(self):
         self.send(create_error_msg(CODE_OK))
@@ -161,14 +163,12 @@ class Connection(object):
             if not self.connected:
                 self.socket.close()
                 break
-            
-            print(data_list)
             for command in data_list:
                 argv = command.split()
-                print(command)
                 try:
                     self.aux(argv)  
-                except:
+                except Exception as e:
+                    print(e)
                     self.send(create_error_msg(INTERNAL_ERROR))
                     self.socket.close()
                     self.connected = False

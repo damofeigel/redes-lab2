@@ -16,3 +16,8 @@ for command in lol:
         print("mal ahi 2")
 
 print(lol)
+
+with open('big.txt', 'wb') as file:
+    for i in range(1, 254):
+        a = (bytes([i]) * (2**17))
+        file.write(a)
