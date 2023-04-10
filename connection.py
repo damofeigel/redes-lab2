@@ -7,10 +7,12 @@ import os
 from constants import *
 from base64 import b64encode
 
+
 def create_error_msg(msg_code):
     assert valid_status(msg_code)
     buf = f"{msg_code} {error_messages[msg_code]}" + EOL
     return buf
+
 
 class Connection(object):
     """
@@ -68,7 +70,7 @@ class Connection(object):
 
         filesize = os.stat(path).st_size
 
-        if offset < 0 and size < 0 :
+        if offset < 0 and size < 0:
             self.send(create_error_msg(INVALID_ARGUMENTS))
             return
 
@@ -82,19 +84,18 @@ class Connection(object):
 
         with open(path, "rb") as file:
             file.seek(offset)
-            buf = file.read(size)    
-            
+            buf = file.read(size)
+
         buf64_bytes = b64encode(buf)
         buf64 = buf64_bytes.decode('ascii')
         buf = create_error_msg(CODE_OK) + buf64 + EOL
 
         self.send(buf)
-    
 
     def quit(self):
         self.socket.close()
 
-    def aux(self, argv):
+    def parse_command(self, argv):
         match argv:
             case ['get_file_listing']:
                 self.get_file_listing()
@@ -115,10 +116,10 @@ class Connection(object):
 
             case (
                     ['get_file_listing', *_] | ['get_metadata', *_] |
-                    ['get_slice', *_] | ['quit', *_] ):
+                    ['get_slice', *_] | ['quit', *_]):
                 self.send(create_error_msg(INVALID_ARGUMENTS))
 
-            case _:    
+            case _:
                 self.send(create_error_msg(INVALID_COMMAND))
 
     def handle(self):
@@ -135,8 +136,8 @@ class Connection(object):
                     self.send(create_error_msg(BAD_REQUEST))
                     self.quit()
                     break
-                    
-            if not self.connected: 
+
+            if not self.connected:
                 break
 
             data_list = data.split(EOL)
@@ -145,16 +146,16 @@ class Connection(object):
                 self.send(create_error_msg(BAD_EOL))
                 self.quit()
                 break
-            
+
             else:
                 data_list = data_list[:-1]
-            
+
             for command in data_list:
                 if '\n' in command:
                     self.send(create_error_msg(BAD_EOL))
                     self.connected = False
                     break
-            
+
             if not self.connected:
                 self.quit()
                 break
@@ -162,7 +163,7 @@ class Connection(object):
             for command in data_list:
                 argv = command.split()
                 try:
-                    self.aux(argv)  
+                    self.parse_command(argv)
                 except Exception as e:
                     print(e)
                     self.send(create_error_msg(INTERNAL_ERROR))

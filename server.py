@@ -13,7 +13,7 @@ import connection
 import threading
 from queue import Queue
 from constants import *
-
+MAX_CLIENTS = 5
 
 class Server(object):
     """
@@ -24,7 +24,7 @@ class Server(object):
     def __init__(self, addr=DEFAULT_ADDR, port=DEFAULT_PORT,
                  directory=DEFAULT_DIR):
         print("Serving %s on %s:%s." % (directory, addr, port))
-        
+
         self.directory = directory
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((addr, port))
@@ -39,8 +39,8 @@ class Server(object):
             clientsocket, clientaddr = self.socket.accept()
             con = connection.Connection(clientsocket, self.directory)
 
-            if threading.active_count() - 1 < 1:
-                thread =  threading.Thread(target = con.handle) 
+            if threading.active_count() - 1 < MAX_CLIENTS:
+                thread = threading.Thread(target=con.handle)
                 print(f"Connected by {clientaddr}")
                 thread.daemon = True
                 thread.start()
@@ -49,8 +49,6 @@ class Server(object):
                 con.send("No more connections allowed\n")
                 con.socket.close()
 
-
-                
 
 def main():
     """Parsea los argumentos y lanza el server"""

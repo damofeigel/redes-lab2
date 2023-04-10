@@ -59,7 +59,7 @@ class TestBase(unittest.TestCase):
 
 
 class TestHFTPServer(TestBase):
-    
+
     # Tests
     def test_connect_and_quit(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,7 +87,7 @@ class TestHFTPServer(TestBase):
         # Se desconectó?
         self.assertTrue(not got)
         s.close()
-    
+
     def test_quit_answers_ok(self):
         c = self.new_client()
         c.close()
@@ -180,10 +180,10 @@ class TestHFTPServer(TestBase):
             "El contenido del archivo no es el correcto")
         f.close()
         c.close()
-    
+
 
 class TestHFTPErrors(TestBase):
-    
+
     def test_bad_eol(self):
         c = self.new_client()
         c.send('qui\nt\n')
@@ -249,10 +249,10 @@ class TestHFTPErrors(TestBase):
             constants.FILE_NOT_FOUND,
             "El servidor no contestó 202 ante un archivo inexistente")
         c.close()
-    
+
 
 class TestHFTPHard(TestBase):
-    
+
     def test_command_in_pieces(self):
         c = self.new_client()
         for ch in 'quit\r\n':
@@ -289,7 +289,7 @@ class TestHFTPHard(TestBase):
         self.assertEqual(c.status, constants.CODE_OK)
         c.get_slice(self.output_file, 0, size)
         self.assertEqual(c.status, constants.CODE_OK)
-        
+
         f = open(self.output_file, "rb")
         for i in range(1, 255):
             s = f.read(2 ** 17)  # 128 KB
@@ -312,7 +312,7 @@ class TestHFTPHard(TestBase):
             "nombre muy largo (status=%d)" %
             status)
         c.close()
-    
+
     def test_data_with_nulls(self):
         self.output_file = 'bar'
         test_data = 'x' * 100 + '\0' * 100 + 'y' * 100

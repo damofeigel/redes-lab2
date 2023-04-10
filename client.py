@@ -234,7 +234,7 @@ def main():
 
     try:
         client = Client(args[0], port)
-    except(socket.error, socket.gaierror):
+    except (socket.error, socket.gaierror):
         sys.stderr.write("Error al conectarse\n")
         sys.exit(1)
 
