@@ -26,16 +26,11 @@ class Connection(object):
         self.connected = True
 
     def send(self, message):
-        total_sent = 0
-        messageToSend = message[:20000]
-        while message:
-            total_sent = self.socket.send(messageToSend.encode("ascii"))
-            assert total_sent > 0
-            message = message[total_sent:]
-            if(len(message) < 20000):
-                messageToSend = message
-            else: 
-                messageToSend = message[:20000]
+        message = message.encode('ascii')
+        while len(message) > 0:
+            sent = self.socket.send(message)
+            assert sent > 0
+            message = message[sent:]
 
     def get_file_listing(self):
         buf = create_error_msg(CODE_OK)
@@ -95,7 +90,6 @@ class Connection(object):
 
         self.send(buf)
     
-
 
     def quit(self):
         self.socket.close()

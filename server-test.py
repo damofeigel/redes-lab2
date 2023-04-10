@@ -289,7 +289,7 @@ class TestHFTPHard(TestBase):
         self.assertEqual(c.status, constants.CODE_OK)
         c.get_slice(self.output_file, 0, size)
         self.assertEqual(c.status, constants.CODE_OK)
-        """
+        
         f = open(self.output_file, "rb")
         for i in range(1, 255):
             s = f.read(2 ** 17)  # 128 KB
@@ -297,7 +297,6 @@ class TestHFTPHard(TestBase):
                              bytes([i]) * (2 ** 17),
                              "El contenido del archivo no es el correcto")
         f.close()
-        """
         c.close()
 
     def test_big_filename(self):
