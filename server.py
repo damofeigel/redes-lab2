@@ -10,6 +10,8 @@ import optparse
 import sys
 import socket
 import connection
+import threading
+from queue import Queue
 from constants import *
 
 
@@ -22,10 +24,6 @@ class Server(object):
     def __init__(self, addr=DEFAULT_ADDR, port=DEFAULT_PORT,
                  directory=DEFAULT_DIR):
         print("Serving %s on %s:%s." % (directory, addr, port))
-        # FALTA: Crear socket del servidor, configurarlo, asignarlo
-        # a una dirección y puerto, etc.
-        # https://realpython.com/python-sockets/
-        # https://www.youtube.com/watch?v=E3YcCawV-0s&t
         
         self.directory = directory
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,16 +36,21 @@ class Server(object):
         y se espera a que concluya antes de seguir.
         """
         while True:
-        
             clientsocket, clientaddr = self.socket.accept()
-            print(f"Connected by {clientaddr}")
-
             con = connection.Connection(clientsocket, self.directory)
-            connection.Connection.handle(con)
-    
-            # FALTA: Aceptar una conexión al server, crear una
-            # Connection para la conexión y atenderla hasta que termine.
 
+            if threading.active_count() - 1 < 1:
+                thread =  threading.Thread(target = con.handle) 
+                print(f"Connected by {clientaddr}")
+                thread.daemon = True
+                thread.start()
+                print(f"ACTIVE CONNECTIONS {threading.active_count() - 1}")
+            else:
+                con.send("No more connections allowed\n")
+                con.socket.close()
+
+
+                
 
 def main():
     """Parsea los argumentos y lanza el server"""

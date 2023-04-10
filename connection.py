@@ -27,10 +27,15 @@ class Connection(object):
 
     def send(self, message):
         total_sent = 0
+        messageToSend = message[:20000]
         while message:
-            total_sent = self.socket.send(message.encode("ascii"))
+            total_sent = self.socket.send(messageToSend.encode("ascii"))
             assert total_sent > 0
             message = message[total_sent:]
+            if(len(message) < 20000):
+                messageToSend = message
+            else: 
+                messageToSend = message[:20000]
 
     def get_file_listing(self):
         buf = create_error_msg(CODE_OK)
@@ -61,7 +66,7 @@ class Connection(object):
         offset = int(offset)
         size = int(size)
 
-        path = self.directory + "/" + filename
+        path = os.path.join(self.directory, filename)
         if not os.path.isfile(path):
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
@@ -79,14 +84,11 @@ class Connection(object):
         if offset + size > filesize:
             self.send(create_error_msg(BAD_OFFSET))
             return
-        
-        size_max = size
 
         with open(path, "rb") as file:
             file.seek(offset)
             buf = file.read(size)    
-            size_max -= size
-
+            
         buf64_bytes = b64encode(buf)
         buf64 = buf64_bytes.decode('ascii')
         buf = create_error_msg(CODE_OK) + buf64 + EOL
@@ -96,7 +98,6 @@ class Connection(object):
 
 
     def quit(self):
-        self.send(create_error_msg(CODE_OK))
         self.socket.close()
 
     def aux(self, argv):
@@ -114,6 +115,7 @@ class Connection(object):
                     self.get_slice(filename, offset, size)
 
             case ['quit']:
+                self.send(create_error_msg(CODE_OK))
                 self.quit()
                 self.connected = False
 
@@ -129,7 +131,7 @@ class Connection(object):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        MAX_BYTES = 2**14
+        MAX_BYTES = 2**25
         while self.connected:
             # el mensaje deberia ser un comando
             data = self.socket.recv(1024).decode('ascii')
@@ -137,8 +139,7 @@ class Connection(object):
                 data += self.socket.recv(1024).decode('ascii')
                 if len(data) > MAX_BYTES:
                     self.send(create_error_msg(BAD_REQUEST))
-                    self.connected = False
-                    self.socket.close()
+                    self.quit()
                     break
                     
             if not self.connected: 
@@ -148,8 +149,7 @@ class Connection(object):
 
             if data_list[-1] != '':
                 self.send(create_error_msg(BAD_EOL))
-                self.connected = False
-                self.socket.close()
+                self.quit()
                 break
             
             else:
@@ -159,10 +159,12 @@ class Connection(object):
                 if '\n' in command:
                     self.send(create_error_msg(BAD_EOL))
                     self.connected = False
+                    break
             
             if not self.connected:
-                self.socket.close()
+                self.quit()
                 break
+
             for command in data_list:
                 argv = command.split()
                 try:
@@ -170,5 +172,4 @@ class Connection(object):
                 except Exception as e:
                     print(e)
                     self.send(create_error_msg(INTERNAL_ERROR))
-                    self.socket.close()
-                    self.connected = False
+                    self.quit()
