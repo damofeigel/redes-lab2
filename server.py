@@ -11,9 +11,7 @@ import sys
 import socket
 import connection
 import threading
-from queue import Queue
 from constants import *
-MAX_CLIENTS = 5
 
 class Server(object):
     """
@@ -39,7 +37,8 @@ class Server(object):
             clientsocket, clientaddr = self.socket.accept()
             con = connection.Connection(clientsocket, self.directory)
 
-            if threading.active_count() - 1 < MAX_CLIENTS:
+            # Como no se quiere contar el server, se le resta 1
+            if threading.active_count() - 1 < MAX_CLIENTS:  
                 thread = threading.Thread(target=con.handle)
                 print(f"Connected by {clientaddr}")
                 thread.daemon = True

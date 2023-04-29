@@ -7,12 +7,36 @@ import os
 from constants import *
 from base64 import b64encode
 
-
 def create_error_msg(msg_code):
+    """
+    Crea y devuelve el mensaje de error según el msg_code que recibe.
+    Incluye el caso del CODE_OK.
+    """
+
     assert valid_status(msg_code)
     buf = f"{msg_code} {error_messages[msg_code]}" + EOL
     return buf
 
+def check_filename(filename):
+    """
+    Chequea si el nombre del archivo es válido.
+    Si es inválido devuelve True, sino False.
+    """
+    
+    for c in filename:
+        if c not in VALID_CHARS:
+            return True
+    return False
+
+def check_path(path):
+        """
+        Chequea si el archivo existe.
+        Si no existe devuelve True, sino False.
+        """
+       
+        if not os.path.isfile(path):
+            return True
+        return False
 
 class Connection(object):
     """
@@ -22,10 +46,9 @@ class Connection(object):
     """
 
     def __init__(self, socket, directory):
-        # FALTA: Inicializar atributos de Connection
         self.socket = socket
         self.directory = directory
-        self.connected = True
+        self.connected = True   # Flag para estado de conexión
 
     def send(self, message):
         message = message.encode('ascii')
@@ -36,23 +59,25 @@ class Connection(object):
 
     def get_file_listing(self):
         buf = create_error_msg(CODE_OK)
-        for dir in os.listdir(self.directory):
-            buf += dir + " " + EOL
+        for file in os.listdir(self.directory):
+            buf += file  + " " + EOL
         buf += EOL
 
         self.send(buf)
 
     def get_metadata(self, filename):
-        path = self.directory + '/' + filename
-        # Check if file exists
-        if not os.path.isfile(path):
+
+        error = check_filename(filename)
+        if error: 
+            self.send(create_error_msg(INVALID_ARGUMENTS))
+            return
+
+        path = os.path.join(self.directory, filename)
+
+        error = check_path(path)
+        if error: 
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
-        # Check if filename is valid
-        for c in filename:
-            if c not in VALID_CHARS:
-                self.send(create_error_msg(INVALID_ARGUMENTS))
-                return
 
         buf = create_error_msg(CODE_OK)
         filesize = os.stat(path).st_size
@@ -60,11 +85,19 @@ class Connection(object):
         self.send(buf)
 
     def get_slice(self, filename, offset, size):
-        offset = int(offset)
+        # Convertimos en int porque vienen como str
+        offset = int(offset)   
         size = int(size)
 
+        error = check_filename(filename)
+        if error: 
+            self.send(create_error_msg(INVALID_ARGUMENTS))
+            return
+
         path = os.path.join(self.directory, filename)
-        if not os.path.isfile(path):
+
+        error = check_path(path)
+        if error: 
             self.send(create_error_msg(FILE_NOT_FOUND))
             return
 
@@ -72,10 +105,6 @@ class Connection(object):
 
         if offset < 0 and size < 0:
             self.send(create_error_msg(INVALID_ARGUMENTS))
-            return
-
-        if offset > filesize:
-            self.send(create_error_msg(BAD_OFFSET))
             return
 
         if offset + size > filesize:
@@ -93,9 +122,15 @@ class Connection(object):
         self.send(buf)
 
     def quit(self):
+        self.send(create_error_msg(CODE_OK))
         self.socket.close()
+        self.connected = False
 
-    def parse_command(self, argv):
+
+    def execute_command(self, argv):
+        """
+        Ejecuta el comando correspondiente
+        """
         match argv:
             case ['get_file_listing']:
                 self.get_file_listing()
@@ -110,9 +145,7 @@ class Connection(object):
                     self.get_slice(filename, offset, size)
 
             case ['quit']:
-                self.send(create_error_msg(CODE_OK))
                 self.quit()
-                self.connected = False
 
             case (
                     ['get_file_listing', *_] | ['get_metadata', *_] |
@@ -126,45 +159,50 @@ class Connection(object):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        MAX_BYTES = 2**25
         while self.connected:
-            # el mensaje deberia ser un comando
-            data = self.socket.recv(1024).decode('ascii')
-            while not EOL in data:
-                data += self.socket.recv(1024).decode('ascii')
-                if len(data) > MAX_BYTES:
+            # El mensaje deberia ser un comando
+            message = self.socket.recv(1024).decode('ascii')
+
+            # Recibimos data hasta que haya un EOL
+            # Chequeamos que el comando no sea muy grande con MAX_BYTES
+            while not EOL in message:
+                message += self.socket.recv(1024).decode('ascii')
+                if len(message) > MAX_BYTES:
                     self.send(create_error_msg(BAD_REQUEST))
+                    self.quit()
+                    break
+
+            # Si hubo un quit se sale del ciclo
+            if not self.connected:
+                break
+
+            # Se hace una lista separada por comandos
+            message_list = message.split(EOL)
+
+            # Chequea que el mensaje termine con un EOL
+            if message_list[-1] != '':
+                self.send(create_error_msg(BAD_EOL))
+                self.quit()
+                break
+            else:
+                message_list = message_list[:-1]
+
+            # Chequea que no haya un \n dentro de los comandos
+            for command in message_list:
+                if '\n' in command:
+                    self.send(create_error_msg(BAD_EOL))
                     self.quit()
                     break
 
             if not self.connected:
                 break
 
-            data_list = data.split(EOL)
-
-            if data_list[-1] != '':
-                self.send(create_error_msg(BAD_EOL))
-                self.quit()
-                break
-
-            else:
-                data_list = data_list[:-1]
-
-            for command in data_list:
-                if '\n' in command:
-                    self.send(create_error_msg(BAD_EOL))
-                    self.connected = False
-                    break
-
-            if not self.connected:
-                self.quit()
-                break
-
-            for command in data_list:
+            # Ejecuta cada comando y levanta una excepción en caso
+            # de algun error para que el servidor no se corte 
+            for command in message_list:
                 argv = command.split()
                 try:
-                    self.parse_command(argv)
-                except Exception as e:
-                    print(e)
+                    self.execute_command(argv)
+                except Exception:
                     self.send(create_error_msg(INTERNAL_ERROR))
                     self.quit()

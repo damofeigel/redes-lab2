@@ -12,6 +12,9 @@ DEFAULT_PORT = 19500
 
 EOL = '\r\n'
 
+MAX_CLIENTS = 5
+
+MAX_BYTES = 2**25   # Limite para el mensaje que puede mandar el cliente
 
 CODE_OK = 0
 BAD_EOL = 100
