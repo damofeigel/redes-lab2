@@ -31,17 +31,23 @@ Al ejecutar el servidor en una computadora del laboratorio, conectarse como clie
 ### Estructura del servidor
 
 El servidor esta armado sobre una clase, en la cual al crear el objeto Server se inicializa con los protocolos IPv4 y TCP, y se pone a la escucha en un addr y port asignados, logrado con las funciones listen y bind respectivamente. 
+
 Una vez creado el objeto e iniciado, se llama al método serve para comenzar a servir y esperar las conexiones de los clientes. Se acepta la conexión del cliente, y con su socket y address se crea el objeto connection, si todavia hay lugar (es decir no hay MAX_CLIENTS conectados) entonces se pasa atender al cliente, sino se le manda un mensaje y se cierra la conexión. 
+
 Cuando se atiende a un cliente se crea un nuevo hilo que tiene como target al método handle de connection, se marca al hilo como "Hilo Demonio" (esto se hace para que si el servidor se rompe, el cliente no pierda la conexión sin aviso alguno y termine de ejecutar el método handle tirando el error correspondiente). Luego se inicia el hilo que se encarga de manejar los pedidos del cliente, mientras que el hilo servidor sigue a la espera de nuevos clientes. Cuando se cierra la conexión que tenia el hilo del cliente sale del método handle y se termina el hilo.
+
 Decidimos limitar la cantidad de conexiones a 5 a la vez. Si se desea cambiar la cantidad de clientes se debe cambiar en la variable MAX_CLIENTS en constants.py.
 
 ### Manejo de pedidos
 
 Cuando se crea la conexión en server se inicializa con el socket del cliente, el directorio de archivos y una flag para mantener información del estado de conexión. La flag se usa para los casos en que sucede algo por lo que se debe cerrar la conexión y se esta dentro de un ciclo, entonces se hace una comprobación para ver si la conexión sigue en pie o no, en caso de que no, se sale del ciclo.
+
 El método handle se encarga de atender al cliente hasta que se cierre la conexión. 
+
 Lo primero que hace es recibir el mensaje, hay una comprobación para que el mensaje no sea extremadamente largo, que seria para los casos malintencionados. Esta comprobración se hace en base a la variable MAX_BYTES definida en constants.py.
 Luego separa el mensaje por EOL, para separar por los diferentes comandos y comprueba que el mensaje haya terminado con un EOL. Esto lo hace chequeando que el ultimo elemento de la lista sea un string vacío ya que el split va a separar el comando del ultimo espacio del mensaje y por eso queda vacío. Un ejemplo: ['abc',''] = abc\r\n.split(EOL).
 Antes de empezar a ejecutar chequea que no haya un \n en alguno de los comandos.
+
 Y por último ejecuta los comandos (o el comando si es uno solo) llamando a la función execute_command que chequea que comando es (o si no es ninguno) y llamando a la función correspondiente para ejecutarlo. Tambien en esta función se revisa que los parámetros de los comandos sean la cantidad correcta y los tipos correctos.
 
 ### Funciones para comandos
@@ -66,6 +72,7 @@ Cierra la conexión con el cliente y setea la flag connected a False.
 
 ### server.py
 La unica dificultad que tuvimos en el server.py, que mas bien fue una duda, fue que no sabiamos si los hilos al salir del método handle seguian ejecutandose en el serve o se terminaban. Si se seguian ejecutando iba a ser un problema porque se iba a tener cada vez mas hilos en el servidor atendiendo clientes, y por cada cliente que haya cerrado la conexión iriamos sumando cada vez mas hilos (procesos) que se ejecutan. 
+
 Averiguamos un poco como funcionaba, y vimos que la misma libreria se encargaba de terminar el hilo cuando saliera del método target que tuviera.
 
 ### connection.py
@@ -76,5 +83,6 @@ Averiguamos un poco como funcionaba, y vimos que la misma libreria se encargaba 
 ### tests
 
 La mayoria de las dificultades que tuvimos, fueron principalmente con los tests, como que al probar casos similares a los tests utilizando telnet, nos funcinaba bien, pero los tests seguian tirando errores, un ejemplo de esto es lo menciona en el punto 2 de las dificultades del connection.py.
+
 Otro problema que tuvimos con los tests fue especificamente con el test big_file, como no sabiamos que tardaba bastante cancelabamos el proceso creyendo que se habia trabado en algún ciclo, y como cuando lo cancelabamos tiraba un error en el método send del socket creiamos que el problema venia de ahí. Probamos bastante, hasta que nos dimos cuenta que si pasaba el test pero que demoraba bastante.
 
